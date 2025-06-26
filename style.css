@@ -30,6 +30,7 @@ body, html {
     user-select: none;
     touch-action: manipulation;
     background: rgba(34,34,34,0.98);
+    color: #fff;
 }
 #main-menu h1 {
     font-size: min(7vw, 7vh, 2.2em);
@@ -51,6 +52,7 @@ body, html {
     height: min(60vw, 60vh, 220px);
     max-width: 90vw;
     max-height: 40vh;
+    color: #fff;
 }
 #play-btn:active {
     box-shadow: 0 2px 8px #0006;
@@ -67,19 +69,17 @@ body, html {
 #game-canvas {
     display: block;
     position: fixed;
-    left: 0;
-    top: 0;
-    width: 100vw !important;
-    height: 100dvh !important;
-    min-width: 220px;
-    min-height: 320px;
-    margin: 0;
-    padding: 0;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     background: #87ceeb;
     border: 4px solid #333;
     image-rendering: pixelated;
     touch-action: none;
     z-index: 1;
     max-width: 100vw;
-    max-height: 100dvh;
+    max-height: 100vh;
+    min-width: 320px;
+    min-height: 480px;
+    box-sizing: border-box;
 }

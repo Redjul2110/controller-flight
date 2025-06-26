@@ -12,19 +12,31 @@ pipeImg.src = 'Png/Wand.png';
 // Game variables
 let bird, pipes, gravity, velocity, score, gameOver, started;
 
+// Globale mapScale-Berechnung
+let globalMapScale = 1;
+
+function getMapScale() {
+    const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+    return isMobile ? 1.2 : 1.3;
+}
+
 function resetGame() {
-    const minSide = Math.min(canvas.width, canvas.height);
-    const grassHeight = Math.max(24, canvas.height * 0.08);
-    // Bird-Size: orientiert sich nur an der Höhe, damit das Seitenverhältnis des Bildes erhalten bleibt
-    const birdSize = Math.max(32, canvas.height * 0.07);
+    globalMapScale = getMapScale();
+    const mapScale = globalMapScale;
+    const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+    const minW = isMobile ? 120 : Math.max(180, Math.min(canvas.width, canvas.height, window.innerWidth, window.innerHeight));
+    const minH = isMobile ? 180 : Math.max(260, Math.min(canvas.height, window.innerHeight));
+    const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
+    // Bird-Size: noch kleiner (0.032 der Canvas-Höhe)
+    const birdSize = Math.max(10, Math.round(canvas.height * 0.032 * mapScale));
     bird = {
-        x: Math.max(40, canvas.width * 0.15),
+        x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)),
         y: (canvas.height - grassHeight) / 2 - birdSize / 2,
         w: birdSize,
         h: birdSize
     };
     pipes = [];
-    gravity = Math.max(0.5, canvas.height * 0.001);
+    gravity = Math.max(0.25, canvas.height * 0.0007 * mapScale);
     velocity = 0;
     score = 0;
     gameOver = false;
@@ -49,57 +61,69 @@ function drawBird() {
 }
 
 function drawPipes() {
+    const mapScale = globalMapScale;
     pipes.forEach(pipe => {
-        // Pipe-Schatten
         ctx.save();
         ctx.globalAlpha = 0.18;
         ctx.fillStyle = '#000';
-        ctx.fillRect(pipe.x + 6, 6, pipe.w, pipe.top);
-        ctx.fillRect(pipe.x + 6, pipe.bottomY + 6, pipe.w, pipe.bottom);
+        ctx.fillRect(pipe.x + 6 * mapScale, 6 * mapScale, pipe.w * mapScale, pipe.top * mapScale);
+        ctx.fillRect(pipe.x + 6 * mapScale, pipe.bottomY * mapScale + 6 * mapScale, pipe.w * mapScale, pipe.bottom * mapScale);
         ctx.globalAlpha = 1;
         ctx.restore();
-        // Pipe
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(pipeImg, pipe.x, 0, pipe.w, pipe.top);
-        ctx.translate(pipe.x + pipe.w, pipe.bottomY);
+        ctx.drawImage(pipeImg, pipe.x, 0, pipe.w * mapScale, pipe.top * mapScale);
+        ctx.translate(pipe.x + pipe.w * mapScale, pipe.bottomY * mapScale);
         ctx.scale(-1, 1);
-        ctx.drawImage(pipeImg, 0, 0, pipe.w, pipe.bottom);
+        ctx.drawImage(pipeImg, 0, 0, pipe.w * mapScale, pipe.bottom * mapScale);
         ctx.restore();
-        // Pipe-Umrandung
         ctx.save();
         ctx.strokeStyle = '#1a4d1a';
-        ctx.lineWidth = Math.max(3, pipe.w * 0.08);
-        ctx.strokeRect(pipe.x, 0, pipe.w, pipe.top);
-        ctx.strokeRect(pipe.x, pipe.bottomY, pipe.w, pipe.bottom);
+        ctx.lineWidth = Math.max(2, pipe.w * 0.06 * mapScale);
+        ctx.strokeRect(pipe.x, 0, pipe.w * mapScale, pipe.top * mapScale);
+        ctx.strokeRect(pipe.x, pipe.bottomY * mapScale, pipe.w * mapScale, pipe.bottom * mapScale);
         ctx.restore();
     });
 }
 
 function draw() {
+    // Kamera folgt dem Vogel vertikal (Vogel bleibt immer mittig, außer am Boden/oben)
+    let camY = 0;
+    if (bird) {
+        const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+        const grassHeight = isMobile ? Math.max(12, Math.round(canvas.height * 0.07)) : Math.max(24, Math.round(canvas.height * 0.14));
+        const centerY = canvas.height / 2;
+        camY = bird.y + bird.h / 2 - centerY;
+        // Clamp: Kamera darf nicht über den oberen Rand oder unter das Gras scrollen
+        camY = Math.max(0, Math.min(camY, (canvas.height - grassHeight) - canvas.height));
+    }
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Canvas immer leeren
+    ctx.translate(0, -camY);
     drawBackground();
     drawClouds();
     drawPipes();
     drawTopCloudBar();
-    drawScore();
     drawBird();
     drawGrass();
+    ctx.restore();
+    // Score und Game Over Overlay immer HUD-zentriert (nicht mit Kamera verschieben)
+    drawScore();
     if (gameOver) {
-        // Game Over Screen zentriert und responsive
         ctx.save();
         ctx.textAlign = 'center';
-        ctx.font = 'bold ' + Math.max(56, canvas.height * 0.08) + 'px monospace';
+        const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+        const goFont = isMobile ? Math.max(16, Math.round(canvas.height * 0.045)) : Math.max(32, Math.round(canvas.height * 0.08));
+        ctx.font = 'bold ' + goFont + 'px monospace';
         ctx.fillStyle = '#ff0';
         ctx.shadowColor = '#000';
         ctx.shadowBlur = 8;
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - Math.max(60, canvas.height * 0.08));
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - goFont * 0.7);
         ctx.shadowBlur = 0;
-        ctx.font = 'bold ' + Math.max(32, canvas.height * 0.045) + 'px monospace';
+        ctx.font = 'bold ' + (isMobile ? Math.max(10, Math.round(canvas.height * 0.03)) : Math.max(18, Math.round(canvas.height * 0.045))) + 'px monospace';
         ctx.fillStyle = '#fff';
-        ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 18);
-        ctx.fillText('Drücke Leertaste', canvas.width / 2, canvas.height / 2 + 28);
+        ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2);
         ctx.restore();
-        // Retry Button anzeigen
         showRetryButton();
     } else {
         hideRetryButton();
@@ -108,27 +132,28 @@ function draw() {
 }
 
 function drawScore() {
-    ctx.font = 'bold ' + Math.max(32, canvas.height * 0.045) + 'px monospace';
-    ctx.fillStyle = '#ff0'; // Gelb
+    // Score noch kleiner auf Handy
+    const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+    const fontSize = isMobile ? Math.max(10, Math.round(canvas.height * 0.03)) : Math.max(18, Math.round(canvas.height * 0.045));
+    ctx.font = 'bold ' + fontSize + 'px monospace';
+    ctx.fillStyle = '#ff0';
     ctx.textAlign = 'right';
-    // Score weiter unten anzeigen (z.B. 12% der Canvas-Höhe)
-    ctx.fillText('Score: ' + score, canvas.width - 40, Math.max(60, canvas.height * 0.12));
+    ctx.fillText('Score: ' + score, canvas.width - 8, isMobile ? Math.max(16, canvas.height * 0.06) : Math.max(32, canvas.height * 0.10));
     ctx.textAlign = 'left';
 }
 
 function drawGrass() {
-    // Pixeliges Gras mit dunklerer Umrandung
-    // Gras deutlich höher: 18% der Canvas-Höhe, mindestens 48px
-    const grassHeight = Math.max(48, canvas.height * 0.18);
-    const bladeWidth = Math.max(4, Math.floor(canvas.width / 100));
+    // Gras immer am unteren Rand, unabhängig von mapScale
+    const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
+    const grassHeight = isMobile ? Math.max(12, Math.round(canvas.height * 0.07)) : Math.max(24, Math.round(canvas.height * 0.14));
+    const bladeWidth = isMobile ? Math.max(1, Math.floor(canvas.width / 60)) : Math.max(2, Math.floor(canvas.width / 80));
     for (let x = 0; x < canvas.width; x += bladeWidth) {
-        let bladeH = grassHeight + Math.floor(Math.sin(x * 0.15) * 6) + Math.floor(Math.random() * 6);
+        let bladeH = grassHeight + Math.floor(Math.sin(x * 0.15) * (isMobile ? 2 : 4)) + Math.floor(Math.random() * (isMobile ? 2 : 4));
         ctx.fillStyle = (x / bladeWidth) % 2 === 0 ? '#3cbb2b' : '#2e8b1a';
-        // Gras direkt am unteren Rand zeichnen
         ctx.fillRect(x, canvas.height - bladeH, bladeWidth, bladeH);
         ctx.save();
         ctx.strokeStyle = '#145a1a';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = isMobile ? 0.5 : 1;
         ctx.strokeRect(x, canvas.height - bladeH, bladeWidth, bladeH);
         ctx.restore();
     }
@@ -148,7 +173,6 @@ function drawClouds() {
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#fff';
         // Pixelige Wolken: feste Rechtecke, nicht random pro Frame
-        // Erzeuge pro Wolke ein festes Muster
         if (!cloud.pattern) {
             cloud.pattern = [];
             for (let i = 0; i < 5; i++) {
@@ -174,7 +198,6 @@ function drawClouds() {
     });
 }
 
-// Wolkenleiste ganz oben am Bildschirm
 function drawTopCloudBar() {
     // Feste "Wolkenleiste" am oberen Rand, pixelig
     const barHeight = Math.max(32, canvas.height * 0.08);
@@ -202,77 +225,52 @@ function drawTopCloudBar() {
 
 function update() {
     if (!started) return;
+    const mapScale = globalMapScale;
     velocity += gravity;
     bird.y += velocity;
-    const grassHeight = Math.max(24, canvas.height * 0.08);
+    const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
     if (bird.y + bird.h > canvas.height - grassHeight) {
         gameOver = true;
     }
-    // Pipes
+    const hitbox = {
+        x: bird.x,
+        y: bird.y,
+        w: bird.w,
+        h: bird.h
+    };
     pipes.forEach(pipe => {
-        pipe.x -= Math.max(2, canvas.width * 0.005);
-        // Collision
+        pipe.x -= Math.max(2, canvas.width * 0.005 * mapScale);
+        // Exakte Kollision ohne Puffer
         if (
-            bird.x < pipe.x + pipe.w &&
-            bird.x + bird.w > pipe.x &&
-            (bird.y < pipe.top || bird.y + bird.h > pipe.bottomY)
+            hitbox.x < pipe.x + pipe.w * mapScale &&
+            hitbox.x + hitbox.w > pipe.x &&
+            (hitbox.y < pipe.top * mapScale || hitbox.y + hitbox.h > pipe.bottomY * mapScale)
         ) {
             gameOver = true;
         }
-        // Score
-        if (!pipe.passed && pipe.x + pipe.w < bird.x) {
+        if (!pipe.passed && pipe.x + pipe.w * mapScale < bird.x) {
             score++;
             pipe.passed = true;
         }
     });
-    // Remove off-screen pipes
-    pipes = pipes.filter(pipe => pipe.x + pipe.w > 0);
-    // Add new pipes
+    pipes = pipes.filter(pipe => pipe.x + pipe.w * mapScale > 0);
+    // Untere Pipe reicht jetzt bis ganz nach unten
     if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width * 0.5) {
-        const grassHeight = Math.max(24, canvas.height * 0.08);
-        const gap = Math.max(180, canvas.height * 0.35);
-        const top = Math.random() * (canvas.height - grassHeight - gap - 40) + 40;
+        // Gap etwas kleiner: 0.26 statt 0.34
+        const gap = Math.max(100, canvas.height * 0.26 * mapScale);
+        const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
+        const top = Math.random() * (canvas.height - grassHeight - gap - 16) + 16;
         const bottomY = top + gap;
         pipes.push({
             x: canvas.width,
-            w: Math.max(60, canvas.width * 0.12),
+            w: Math.max(20, canvas.width * 0.07 * mapScale),
             top: top,
-            bottom: canvas.height - grassHeight - bottomY,
+            // Untere Pipe endet jetzt beim Gras, nicht ganz unten
+            bottom: (canvas.height - grassHeight) - bottomY,
             bottomY: bottomY,
             passed: false
         });
     }
-}
-
-function draw() {
-    drawBackground();
-    drawClouds();
-    drawPipes();
-    drawTopCloudBar();
-    drawScore();
-    drawBird();
-    drawGrass();
-    if (gameOver) {
-        // Game Over Screen zentriert und responsive
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.font = 'bold ' + Math.max(56, canvas.height * 0.08) + 'px monospace';
-        ctx.fillStyle = '#ff0';
-        ctx.shadowColor = '#000';
-        ctx.shadowBlur = 8;
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - Math.max(60, canvas.height * 0.08));
-        ctx.shadowBlur = 0;
-        ctx.font = 'bold ' + Math.max(32, canvas.height * 0.045) + 'px monospace';
-        ctx.fillStyle = '#fff';
-        ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 18);
-        ctx.fillText('Drücke Leertaste', canvas.width / 2, canvas.height / 2 + 28);
-        ctx.restore();
-        // Retry Button anzeigen
-        showRetryButton();
-    } else {
-        hideRetryButton();
-    }
-    ctx.textAlign = 'left'; // Reset
 }
 
 // Retry Button erstellen
@@ -283,20 +281,28 @@ function showRetryButton() {
         retryBtn.textContent = 'Retry';
         retryBtn.style.position = 'fixed';
         retryBtn.style.left = '50%';
-        retryBtn.style.top = 'calc(50% + 120px)'; // weiter unten
+        retryBtn.style.top = 'calc(50% + 120px)';
         retryBtn.style.transform = 'translate(-50%, 0)';
         retryBtn.style.fontSize = Math.max(32, window.innerHeight * 0.045) + 'px';
         retryBtn.style.padding = '18px 48px';
-        retryBtn.style.background = '#222';
-        retryBtn.style.color = '#ff0';
-        retryBtn.style.border = '2px solid #ff0';
-        retryBtn.style.borderRadius = '12px';
+        retryBtn.style.zIndex = 2000;
+        retryBtn.style.background = '#fff';
+        retryBtn.style.color = '#222';
+        retryBtn.style.border = 'none';
+        retryBtn.style.borderRadius = '16px';
+        retryBtn.style.boxShadow = '0 4px 24px #0008';
+        retryBtn.style.fontFamily = 'inherit';
+        retryBtn.style.fontWeight = 'bold';
         retryBtn.style.cursor = 'pointer';
-        retryBtn.style.zIndex = 1000;
-        retryBtn.style.fontFamily = 'monospace';
-        retryBtn.onclick = () => {
-            startGame();
-        };
+        retryBtn.style.display = 'none';
+        retryBtn.style.outline = 'none';
+        retryBtn.style.touchAction = 'manipulation';
+        retryBtn.addEventListener('click', function() {
+            resetGame();
+            started = true;
+            hideRetryButton();
+            gameLoop();
+        });
         document.body.appendChild(retryBtn);
     }
     retryBtn.style.display = 'block';
@@ -328,69 +334,60 @@ playBtn.onclick = startGame;
 
 document.addEventListener('keydown', function(e) {
     if (canvas.style.display === 'block') {
-        if (e.code === 'Space') {
-            if (!started) {
-                started = true;
-                gameLoop();
-            } else if (!gameOver) {
-                velocity = -Math.max(8, canvas.height * 0.018);
-            } else {
-                startGame();
-            }
+        if ((e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') && !gameOver) {
+            velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
+            started = true;
+        } else if (gameOver && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
+            resetGame();
+            started = true;
+            hideRetryButton();
+            gameLoop();
         }
     }
 });
 
-// Touch/Click Steuerung
 canvas.addEventListener('pointerdown', function() {
-    if (!started) {
+    if (!started && !gameOver) {
         started = true;
-        gameLoop();
+        velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
     } else if (!gameOver) {
-        velocity = -Math.max(8, canvas.height * 0.018);
-    } else {
-        startGame();
+        velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
+    } else if (gameOver) {
+        resetGame();
+        started = true;
+        hideRetryButton();
+        gameLoop();
     }
 });
 
-// Bildschirmgröße anpassen
+// canvas/context-Fehler nach Resizing verhindern
 function resizeCanvas() {
-    // Für Mobilgeräte: devicePixelRatio berücksichtigen
+    // Ziel: Seitenverhältnis 2:3 (z.B. 400x600) immer beibehalten, maximal groß, nie verzerrt
     const dpr = window.devicePixelRatio || 1;
-    // Versuche, die tatsächliche Viewport-Größe zu bekommen (auch für iOS Safari, Android Chrome, etc.)
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    // Nutze window.visualViewport, aber nur wenn sinnvoll (nicht bei Desktop mit mehreren Bildschirmen)
-    if (window.visualViewport && window.visualViewport.width > 0 && window.visualViewport.height > 0) {
-        width = window.visualViewport.width;
-        height = window.visualViewport.height;
+    let ww = window.innerWidth;
+    let wh = window.innerHeight;
+    let aspect = 2 / 3;
+    let w = ww;
+    let h = Math.round(ww / aspect);
+    if (h > wh) {
+        h = wh;
+        w = Math.round(wh * aspect);
     }
-    // iOS Safari: Zusätzlicher Fix für Adressleisten-Problem
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-        if (document.documentElement.clientHeight > 0 && document.documentElement.clientHeight < height) {
-            height = document.documentElement.clientHeight;
-        }
-    }
-    // Fallback für Standalone/PWA: nutze screen.height, falls kleiner
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        width = Math.min(width, screen.width);
-        height = Math.min(height, screen.height);
-    }
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    // Mindestgrößen für große Bildschirme
+    w = Math.max(320, w);
+    h = Math.max(480, h);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.style.position = 'fixed';
+    canvas.style.left = '50%';
+    canvas.style.top = '50%';
+    canvas.style.transform = 'translate(-50%, -50%)';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
-    // Passe Menü und Play-Button direkt an neue Größe an
     centerMenu();
 }
-window.addEventListener('resize', resizeCanvas, {passive: false});
-window.addEventListener('orientationchange', resizeCanvas, {passive: false});
-// iOS: Bei Fokusverlust/Scroll/Touch nochmal anpassen
-window.addEventListener('focus', resizeCanvas);
-window.addEventListener('touchend', resizeCanvas);
-resizeCanvas();
 
 // Touch-Optimierung: kein Scrollen, kein Doppeltippen-Zoom
 window.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
@@ -417,11 +414,12 @@ window.addEventListener('resize', centerMenu);
 
 function resizePlayBtn() {
     if (playBtn) {
-        // Auf Touch-Geräten noch größer
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        // Noch größere Buttons auf Mini-Displays
+        const minBtn = Math.max(80, Math.min(window.innerWidth, window.innerHeight) * 0.45);
         const size = isTouch
-            ? Math.max(220, Math.min(window.innerWidth, window.innerHeight) * 0.45)
-            : Math.max(180, Math.min(window.innerWidth, window.innerHeight) * 0.32);
+            ? Math.max(minBtn, Math.min(window.innerWidth, window.innerHeight) * 0.55)
+            : Math.max(60, Math.min(window.innerWidth, window.innerHeight) * 0.32);
         playBtn.style.width = size + 'px';
         playBtn.style.height = size + 'px';
         playBtn.querySelector('img').style.width = '100%';
