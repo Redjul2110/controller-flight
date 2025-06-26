@@ -80,20 +80,25 @@ function draw() {
     drawBackground();
     drawClouds();
     drawPipes();
-    drawTopCloudBar(); // Wolkenleiste ganz oben ÜBER den Pipes
-    drawScore(); // Score jetzt direkt nach der Wolkenleiste, also UNTER Bird und Pipes
+    drawTopCloudBar();
+    drawScore();
     drawBird();
     drawGrass();
     if (gameOver) {
-        // Game Over Schrift mittig und größer
+        // Game Over Screen zentriert und responsive
+        ctx.save();
+        ctx.textAlign = 'center';
         ctx.font = 'bold ' + Math.max(56, canvas.height * 0.08) + 'px monospace';
         ctx.fillStyle = '#ff0';
-        ctx.textAlign = 'center';
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 60);
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 8;
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - Math.max(60, canvas.height * 0.08));
+        ctx.shadowBlur = 0;
         ctx.font = 'bold ' + Math.max(32, canvas.height * 0.045) + 'px monospace';
         ctx.fillStyle = '#fff';
         ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 18);
         ctx.fillText('Drücke Leertaste', canvas.width / 2, canvas.height / 2 + 28);
+        ctx.restore();
         // Retry Button anzeigen
         showRetryButton();
     } else {
@@ -243,20 +248,25 @@ function draw() {
     drawBackground();
     drawClouds();
     drawPipes();
-    drawTopCloudBar(); // Wolkenleiste ganz oben ÜBER den Pipes
-    drawScore(); // Score jetzt direkt nach der Wolkenleiste, also UNTER Bird und Pipes
+    drawTopCloudBar();
+    drawScore();
     drawBird();
     drawGrass();
     if (gameOver) {
-        // Game Over Schrift mittig und größer
+        // Game Over Screen zentriert und responsive
+        ctx.save();
+        ctx.textAlign = 'center';
         ctx.font = 'bold ' + Math.max(56, canvas.height * 0.08) + 'px monospace';
         ctx.fillStyle = '#ff0';
-        ctx.textAlign = 'center';
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 60);
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 8;
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - Math.max(60, canvas.height * 0.08));
+        ctx.shadowBlur = 0;
         ctx.font = 'bold ' + Math.max(32, canvas.height * 0.045) + 'px monospace';
         ctx.fillStyle = '#fff';
         ctx.fillText('Score: ' + score, canvas.width / 2, canvas.height / 2 - 18);
         ctx.fillText('Drücke Leertaste', canvas.width / 2, canvas.height / 2 + 28);
+        ctx.restore();
         // Retry Button anzeigen
         showRetryButton();
     } else {
