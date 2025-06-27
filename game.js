@@ -30,13 +30,14 @@ function resetGame() {
     // Bird-Size: noch kleiner (0.032 der Canvas-Höhe)
     const birdSize = Math.max(10, Math.round(canvas.height * 0.032 * mapScale));
     bird = {
-        x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)),
+        x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)), // zurück zu 10% der Canvas-Breite
         y: (canvas.height - grassHeight) / 2 - birdSize / 2,
         w: birdSize,
         h: birdSize
     };
     pipes = [];
-    gravity = Math.max(0.25, canvas.height * 0.0007 * mapScale);
+    // Gravity für frame-unabhängig kleiner machen
+    gravity = Math.max(0.13, canvas.height * 0.00028 * mapScale); // langsameres Fallen
     velocity = 0;
     score = 0;
     gameOver = false;
@@ -87,19 +88,24 @@ function drawPipes() {
 }
 
 function draw() {
-    // Kamera folgt dem Vogel vertikal (Vogel bleibt immer mittig, außer am Boden/oben)
+    // Kamera folgt dem Vogel vertikal und horizontal (Vogel bleibt immer mittig, außer am Rand)
     let camY = 0;
+    let camX = 0;
     if (bird) {
         const isMobile = window.innerWidth < 600 || window.innerHeight < 600;
         const grassHeight = isMobile ? Math.max(12, Math.round(canvas.height * 0.07)) : Math.max(24, Math.round(canvas.height * 0.14));
         const centerY = canvas.height / 2;
+        const centerX = canvas.width / 2;
         camY = bird.y + bird.h / 2 - centerY;
+        camX = bird.x + bird.w / 2 - centerX;
         // Clamp: Kamera darf nicht über den oberen Rand oder unter das Gras scrollen
         camY = Math.max(0, Math.min(camY, (canvas.height - grassHeight) - canvas.height));
+        // Clamp: Kamera darf nicht über den linken Rand (0) hinaus
+        camX = Math.max(0, camX); // Optional: nach rechts nicht clampen, da endlos
     }
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Canvas immer leeren
-    ctx.translate(0, -camY);
+    ctx.translate(-camX, -camY);
     drawBackground();
     drawClouds();
     drawPipes();
@@ -161,7 +167,7 @@ function drawGrass() {
 
 // Noch mehr Wolken (44 statt 24)
 const clouds = Array.from({length: 44}, (_, i) => ({
-    x: Math.random() * window.innerWidth,
+    x: Math.random() * window.innerWidth, // wieder normale Breite
     y: Math.random() * (window.innerHeight * 0.35) + 30,
     w: Math.random() * 120 + 120,
     h: Math.random() * 60 + 60,
@@ -223,11 +229,28 @@ function drawTopCloudBar() {
     }
 }
 
-function update() {
+let lastFrameTime = null;
+
+function gameLoop(now) {
+    if (!lastFrameTime) lastFrameTime = now;
+    const delta = Math.min((now - lastFrameTime) / 16.666, 2); // 1 = 60fps, capped bei 2 (30fps)
+    lastFrameTime = now;
+    update(delta);
+    draw();
+    if (!gameOver) {
+        requestAnimationFrame(gameLoop);
+    } else {
+        lastFrameTime = null;
+    }
+}
+
+// update bekommt jetzt delta als Parameter
+function update(delta = 1) {
     if (!started) return;
     const mapScale = globalMapScale;
-    velocity += gravity;
-    bird.y += velocity;
+    // Fallgeschwindigkeit frame-unabhängig, aber sanfter
+    velocity += gravity * delta;
+    bird.y += velocity * delta;
     const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
     if (bird.y + bird.h > canvas.height - grassHeight) {
         gameOver = true;
@@ -239,8 +262,7 @@ function update() {
         h: bird.h
     };
     pipes.forEach(pipe => {
-        pipe.x -= Math.max(2, canvas.width * 0.005 * mapScale);
-        // Exakte Kollision ohne Puffer
+        pipe.x -= Math.max(2, canvas.width * 0.005 * mapScale) * delta;
         if (
             hitbox.x < pipe.x + pipe.w * mapScale &&
             hitbox.x + hitbox.w > pipe.x &&
@@ -254,18 +276,24 @@ function update() {
         }
     });
     pipes = pipes.filter(pipe => pipe.x + pipe.w * mapScale > 0);
-    // Untere Pipe reicht jetzt bis ganz nach unten
-    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width * 0.5) {
-        // Gap etwas kleiner: 0.26 statt 0.34
-        const gap = Math.max(100, canvas.height * 0.26 * mapScale);
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width * 0.5) { // wieder Standard
+        // Dynamische Gap: Start groß, wird mit Score kleiner, aber nie zu klein
+        const startGap = 0.26;
+        const minGap = 0.13;
+        const shrinkPerPoint = 0.008;
+        let gapFactor = startGap - score * shrinkPerPoint;
+        if (gapFactor < minGap) gapFactor = minGap;
+        const gap = Math.max(80, canvas.height * gapFactor * mapScale);
         const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
-        const top = Math.random() * (canvas.height - grassHeight - gap - 16) + 16;
+        // Mindestabstand der Lücke zu oben/unten erhöhen (z.B. 48px)
+        const minTop = 48;
+        const maxTop = Math.max(minTop, canvas.height - grassHeight - gap - 48);
+        const top = Math.random() * (maxTop - minTop) + minTop;
         const bottomY = top + gap;
         pipes.push({
-            x: canvas.width,
+            x: canvas.width, // wieder Standard
             w: Math.max(20, canvas.width * 0.07 * mapScale),
             top: top,
-            // Untere Pipe endet jetzt beim Gras, nicht ganz unten
             bottom: (canvas.height - grassHeight) - bottomY,
             bottomY: bottomY,
             passed: false
@@ -327,7 +355,8 @@ function startGame() {
     resetGame();
     started = true;
     hideRetryButton();
-    gameLoop();
+    lastFrameTime = null;
+    requestAnimationFrame(gameLoop);
 }
 
 playBtn.onclick = startGame;
@@ -335,7 +364,7 @@ playBtn.onclick = startGame;
 document.addEventListener('keydown', function(e) {
     if (canvas.style.display === 'block') {
         if ((e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') && !gameOver) {
-            velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
+            velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
             started = true;
         } else if (gameOver && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
             resetGame();
@@ -349,9 +378,9 @@ document.addEventListener('keydown', function(e) {
 canvas.addEventListener('pointerdown', function() {
     if (!started && !gameOver) {
         started = true;
-        velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
+        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
     } else if (!gameOver) {
-        velocity = -Math.max(4.5, canvas.height * 0.018 * 0.6); // 40% weniger Sprunghöhe
+        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
     } else if (gameOver) {
         resetGame();
         started = true;
@@ -362,17 +391,10 @@ canvas.addEventListener('pointerdown', function() {
 
 // canvas/context-Fehler nach Resizing verhindern
 function resizeCanvas() {
-    // Ziel: Seitenverhältnis 2:3 (z.B. 400x600) immer beibehalten, maximal groß, nie verzerrt
+    // Canvas immer auf volle Fenstergröße (ohne Seitenverhältnis-Zwang)
     const dpr = window.devicePixelRatio || 1;
-    let ww = window.innerWidth;
-    let wh = window.innerHeight;
-    let aspect = 2 / 3;
-    let w = ww;
-    let h = Math.round(ww / aspect);
-    if (h > wh) {
-        h = wh;
-        w = Math.round(wh * aspect);
-    }
+    let w = window.innerWidth;
+    let h = window.innerHeight;
     // Mindestgrößen für große Bildschirme
     w = Math.max(320, w);
     h = Math.max(480, h);
@@ -381,9 +403,9 @@ function resizeCanvas() {
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     canvas.style.position = 'fixed';
-    canvas.style.left = '50%';
-    canvas.style.top = '50%';
-    canvas.style.transform = 'translate(-50%, -50%)';
+    canvas.style.left = '0';
+    canvas.style.top = '0';
+    canvas.style.transform = 'none';
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     centerMenu();
