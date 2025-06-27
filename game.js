@@ -208,29 +208,40 @@ function drawClouds() {
     });
 }
 
-function drawTopCloudBar() {
-    // Feste "Wolkenleiste" am oberen Rand, pixelig
+// Obere Wolkenleiste persistent generieren
+let topCloudBar = [];
+function generateTopCloudBar() {
+    topCloudBar = [];
     const barHeight = Math.max(32, canvas.height * 0.08);
-    const cloudCount = Math.ceil(canvas.width / 64);
+    const cloudCount = Math.ceil(canvas.width / 32);
     for (let i = 0; i < cloudCount; i++) {
-        const x = i * 64 + Math.random() * 8;
-        const y = Math.random() * 8;
+        const x = i * 32 + Math.random() * 8;
+        const y = Math.random() * 1 - 6; // noch weiter nach oben, auch leicht ins Off
         const w = 56 + Math.random() * 16;
         const h = barHeight * (0.7 + Math.random() * 0.5);
-        ctx.save();
-        ctx.globalAlpha = 0.92;
-        ctx.fillStyle = '#fff';
-        // Pixelige "Wolke" aus 2-3 Rechtecken
+        const rects = [];
         for (let j = 0; j < 2 + Math.floor(Math.random() * 2); j++) {
             const px = x + Math.random() * 18 - 9;
-            const py = y + Math.random() * (barHeight * 0.3);
+            const py = y + Math.random() * (barHeight * 0.10) - 2; // noch weniger nach unten, noch weiter nach oben
             const pw = w * (0.5 + Math.random() * 0.5);
             const ph = h * (0.5 + Math.random() * 0.5);
-            ctx.fillRect(Math.round(px), Math.round(py), Math.round(pw), Math.round(ph));
+            rects.push({px, py, pw, ph});
         }
-        ctx.globalAlpha = 1;
-        ctx.restore();
+        topCloudBar.push({rects});
     }
+}
+
+function drawTopCloudBar() {
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#fff';
+    topCloudBar.forEach(cloud => {
+        cloud.rects.forEach(r => {
+            ctx.fillRect(Math.round(r.px), Math.round(r.py), Math.round(r.pw), Math.round(r.ph));
+        });
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
 }
 
 let lastFrameTime = null;
@@ -358,6 +369,7 @@ function startGame() {
     started = true;
     hideRetryButton();
     lastFrameTime = null;
+    generateTopCloudBar();
     requestAnimationFrame(gameLoop);
 }
 
@@ -416,6 +428,7 @@ function resizeCanvas() {
     canvas.style.transform = 'none';
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
+    generateTopCloudBar();
     centerMenu();
 }
 
