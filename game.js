@@ -88,7 +88,7 @@ function drawPipes() {
 }
 
 function draw() {
-    // Kamera folgt dem Vogel vertikal und horizontal (Vogel bleibt immer mittig, außer am Rand)
+    // Kamera folgt dem Vogel vertikal UND HORIZONTAL (Vogel bleibt immer mittig, außer am Rand)
     let camY = 0;
     let camX = 0;
     if (bird) {
@@ -105,7 +105,7 @@ function draw() {
     }
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Canvas immer leeren
-    ctx.translate(-camX, -camY);
+    ctx.translate(-camX, -camY); // Kamera folgt wieder auch horizontal
     drawBackground();
     drawClouds();
     drawPipes();
@@ -230,11 +230,17 @@ function drawTopCloudBar() {
 }
 
 let lastFrameTime = null;
+// Globale Variable für delta, damit sie überall verfügbar ist
+let lastDelta = 1;
 
 function gameLoop(now) {
     if (!lastFrameTime) lastFrameTime = now;
-    const delta = Math.min((now - lastFrameTime) / 16.666, 2); // 1 = 60fps, capped bei 2 (30fps)
+    let delta = (now - lastFrameTime) / 16.666; // 1 = 60fps
+    // Failsafe: delta darf nicht zu groß oder zu klein werden
+    if (!isFinite(delta) || delta <= 0) delta = 1;
+    delta = Math.min(delta, 1.2); // Cap auf 1.2 (maximal 20% langsamer als 60fps)
     lastFrameTime = now;
+    lastDelta = delta;
     update(delta);
     draw();
     if (!gameOver) {
@@ -341,14 +347,6 @@ function hideRetryButton() {
     if (retryBtn) retryBtn.style.display = 'none';
 }
 
-function gameLoop() {
-    update();
-    draw();
-    if (!gameOver) {
-        requestAnimationFrame(gameLoop);
-    }
-}
-
 function startGame() {
     menu.style.display = 'none';
     canvas.style.display = 'block';
@@ -364,13 +362,16 @@ playBtn.onclick = startGame;
 document.addEventListener('keydown', function(e) {
     if (canvas.style.display === 'block') {
         if ((e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') && !gameOver) {
-            velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
+            // Sprunghöhe jetzt an delta koppeln
+            const jumpDelta = Math.min(lastDelta, 1);
+            velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
             started = true;
         } else if (gameOver && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
             resetGame();
             started = true;
             hideRetryButton();
-            gameLoop();
+            lastFrameTime = null;
+            requestAnimationFrame(gameLoop);
         }
     }
 });
@@ -378,14 +379,17 @@ document.addEventListener('keydown', function(e) {
 canvas.addEventListener('pointerdown', function() {
     if (!started && !gameOver) {
         started = true;
-        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
+        const jumpDelta = Math.min(lastDelta, 1);
+        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
     } else if (!gameOver) {
-        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7); // Sprunghöhe reduziert
+        const jumpDelta = Math.min(lastDelta, 1);
+        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
     } else if (gameOver) {
         resetGame();
         started = true;
         hideRetryButton();
-        gameLoop();
+        lastFrameTime = null;
+        requestAnimationFrame(gameLoop);
     }
 });
 
