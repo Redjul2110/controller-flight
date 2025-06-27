@@ -12,6 +12,11 @@ pipeImg.src = 'Png/Wand.png';
 // Game variables
 let bird, pipes, gravity, velocity, score, gameOver, started;
 
+// Normierte Werte pro Sekunde (unabhängig von FPS)
+const BASE_GRAVITY = 0.000018; // noch weniger Gravitation, langsameres Fallen
+const BASE_JUMP = 0.010; // Sprunghöhe bleibt
+const BASE_PIPE_SPEED = 0.005; // Pipes unverändert
+
 // Globale mapScale-Berechnung
 let globalMapScale = 1;
 
@@ -27,17 +32,16 @@ function resetGame() {
     const minW = isMobile ? 120 : Math.max(180, Math.min(canvas.width, canvas.height, window.innerWidth, window.innerHeight));
     const minH = isMobile ? 180 : Math.max(260, Math.min(canvas.height, window.innerHeight));
     const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
-    // Bird-Size: noch kleiner (0.032 der Canvas-Höhe)
     const birdSize = Math.max(10, Math.round(canvas.height * 0.032 * mapScale));
     bird = {
-        x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)), // zurück zu 10% der Canvas-Breite
+        x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)),
         y: (canvas.height - grassHeight) / 2 - birdSize / 2,
         w: birdSize,
         h: birdSize
     };
     pipes = [];
-    // Gravity für frame-unabhängig kleiner machen
-    gravity = Math.max(0.13, canvas.height * 0.00028 * mapScale); // langsameres Fallen
+    // Gravity jetzt normiert pro Sekunde
+    gravity = Math.max(0.13, canvas.height * BASE_GRAVITY * mapScale);
     velocity = 0;
     score = 0;
     gameOver = false;
@@ -254,7 +258,7 @@ function gameLoop(now) {
 function update(delta = 1) {
     if (!started) return;
     const mapScale = globalMapScale;
-    // Fallgeschwindigkeit frame-unabhängig, aber sanfter
+    // Normierte Gravity
     velocity += gravity * delta;
     bird.y += velocity * delta;
     const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
@@ -267,8 +271,10 @@ function update(delta = 1) {
         w: bird.w,
         h: bird.h
     };
+    // Normierte Pipe-Geschwindigkeit
+    const pipeSpeed = Math.max(2, canvas.width * BASE_PIPE_SPEED * mapScale) * delta;
     pipes.forEach(pipe => {
-        pipe.x -= Math.max(2, canvas.width * 0.005 * mapScale) * delta;
+        pipe.x -= pipeSpeed;
         if (
             hitbox.x < pipe.x + pipe.w * mapScale &&
             hitbox.x + hitbox.w > pipe.x &&
@@ -282,8 +288,7 @@ function update(delta = 1) {
         }
     });
     pipes = pipes.filter(pipe => pipe.x + pipe.w * mapScale > 0);
-    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width * 0.5) { // wieder Standard
-        // Dynamische Gap: Start groß, wird mit Score kleiner, aber nie zu klein
+    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width * 0.5) {
         const startGap = 0.26;
         const minGap = 0.13;
         const shrinkPerPoint = 0.008;
@@ -291,13 +296,12 @@ function update(delta = 1) {
         if (gapFactor < minGap) gapFactor = minGap;
         const gap = Math.max(80, canvas.height * gapFactor * mapScale);
         const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
-        // Mindestabstand der Lücke zu oben/unten erhöhen (z.B. 48px)
         const minTop = 48;
         const maxTop = Math.max(minTop, canvas.height - grassHeight - gap - 48);
         const top = Math.random() * (maxTop - minTop) + minTop;
         const bottomY = top + gap;
         pipes.push({
-            x: canvas.width, // wieder Standard
+            x: canvas.width,
             w: Math.max(20, canvas.width * 0.07 * mapScale),
             top: top,
             bottom: (canvas.height - grassHeight) - bottomY,
@@ -362,9 +366,9 @@ playBtn.onclick = startGame;
 document.addEventListener('keydown', function(e) {
     if (canvas.style.display === 'block') {
         if ((e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') && !gameOver) {
-            // Sprunghöhe jetzt an delta koppeln
             const jumpDelta = Math.min(lastDelta, 1);
-            velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
+            // Normierte Sprungkraft
+            velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
             started = true;
         } else if (gameOver && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
             resetGame();
@@ -380,10 +384,10 @@ canvas.addEventListener('pointerdown', function() {
     if (!started && !gameOver) {
         started = true;
         const jumpDelta = Math.min(lastDelta, 1);
-        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
+        velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
     } else if (!gameOver) {
         const jumpDelta = Math.min(lastDelta, 1);
-        velocity = -Math.max(2.7, canvas.height * 0.0105 * 0.7) * jumpDelta;
+        velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
     } else if (gameOver) {
         resetGame();
         started = true;
