@@ -14,7 +14,7 @@ let bird, pipes, gravity, velocity, score, gameOver, started;
 
 // Normierte Werte pro Sekunde (unabhängig von FPS)
 const BASE_GRAVITY = 0.000018; // noch weniger Gravitation, langsameres Fallen
-const BASE_JUMP = 0.010; // Sprunghöhe bleibt
+const BASE_JUMP = 0.006; // Sprunghöhe niedriger gemacht
 const BASE_PIPE_SPEED = 0.005; // Pipes unverändert
 
 // Globale mapScale-Berechnung
@@ -378,9 +378,8 @@ playBtn.onclick = startGame;
 document.addEventListener('keydown', function(e) {
     if (canvas.style.display === 'block') {
         if ((e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') && !gameOver) {
-            const jumpDelta = Math.min(lastDelta, 1);
-            // Normierte Sprungkraft
-            velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
+            // Sprungkraft jetzt immer pro Sekunde normiert, unabhängig von delta
+            velocity = -Math.max(2.7, canvas.height * BASE_JUMP);
             started = true;
         } else if (gameOver && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter')) {
             resetGame();
@@ -395,11 +394,9 @@ document.addEventListener('keydown', function(e) {
 canvas.addEventListener('pointerdown', function() {
     if (!started && !gameOver) {
         started = true;
-        const jumpDelta = Math.min(lastDelta, 1);
-        velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
+        velocity = -Math.max(2.7, canvas.height * BASE_JUMP);
     } else if (!gameOver) {
-        const jumpDelta = Math.min(lastDelta, 1);
-        velocity = -Math.max(2.7, canvas.height * BASE_JUMP * 0.7) * jumpDelta;
+        velocity = -Math.max(2.7, canvas.height * BASE_JUMP);
     } else if (gameOver) {
         resetGame();
         started = true;
