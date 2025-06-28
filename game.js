@@ -32,7 +32,8 @@ function resetGame() {
     const minW = isMobile ? 120 : Math.max(180, Math.min(canvas.width, canvas.height, window.innerWidth, window.innerHeight));
     const minH = isMobile ? 180 : Math.max(260, Math.min(canvas.height, window.innerHeight));
     const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
-    const birdSize = Math.max(10, Math.round(canvas.height * 0.032 * mapScale));
+    // Vogel noch kleiner: 0.025 statt 0.032 der Canvas-Höhe
+    const birdSize = Math.max(8, Math.round(canvas.height * 0.025 * mapScale));
     bird = {
         x: Math.max(8, Math.round(canvas.width * 0.10 * mapScale)),
         y: (canvas.height - grassHeight) / 2 - birdSize / 2,
@@ -307,8 +308,10 @@ function update(delta = 1) {
         if (gapFactor < minGap) gapFactor = minGap;
         const gap = Math.max(80, canvas.height * gapFactor * mapScale);
         const grassHeight = Math.max(12, Math.round(canvas.height * 0.07 * mapScale));
+        // Mindestabstand der Lücke zum unteren Rand erhöht (z.B. 1.5x Bird-Höhe + 1.5x Gap)
         const minTop = 48;
-        const maxTop = Math.max(minTop, canvas.height - grassHeight - gap - 48);
+        const minGapBottom = grassHeight + gap * 1.5 + (bird ? bird.h * 1.5 : 0);
+        const maxTop = Math.max(minTop, canvas.height - minGapBottom - gap);
         const top = Math.random() * (maxTop - minTop) + minTop;
         const bottomY = top + gap;
         pipes.push({
